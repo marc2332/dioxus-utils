@@ -42,17 +42,32 @@ fn app(cx: Scope) -> Element {
         channel.send("Hello").ok();
     };
 
-    use_interval(cx, Duration::from_millis(100), move |mut int| async move {
-        loop {
-            int.tick().await;
-            println!("tick! tick!!")
-        }
-    });
-
     render!(
         label {
             onclick: onclick,
             "Send hello"
+        }
+    )
+}
+
+#[allow(non_snake_case, dead_code)]
+fn IntervalApp(cx: Scope) -> Element {
+    let interval = use_interval(
+        cx,
+        Duration::from_millis(100),
+        move |_interval| async move {
+            println!("tick! tick!!");
+        },
+    );
+
+    let onclick = move |_: MouseEvent| {
+        interval.clear();
+    };
+
+    render!(
+        label {
+            onclick: onclick,
+            "Clear"
         }
     )
 }

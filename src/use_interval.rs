@@ -1,20 +1,52 @@
 use std::{future::Future, time::Duration};
 
-use dioxus::prelude::{use_effect, ScopeState};
+use dioxus::prelude::{to_owned, use_effect, use_state, ScopeState, UseState};
 use tokio::time::{interval, Interval};
+
+pub struct UseInterval {
+    interval_state: UseState<IntervalState>,
+}
+
+impl UseInterval {
+    /// Stop the interval
+    pub fn clear(&self) {
+        self.interval_state.set(IntervalState::Cleared);
+        println!("clared");
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+enum IntervalState {
+    Running,
+    Cleared,
+}
 
 pub fn use_interval<Handler>(
     cx: &ScopeState,
     duration: Duration,
-    action: impl FnOnce(Interval) -> Handler,
-) where
+    action: impl Fn(&Interval) -> Handler + 'static,
+) -> UseInterval
+where
     Handler: Future<Output = ()> + 'static,
 {
-    use_effect(cx, (), move |_| {
-        let interval = interval(duration);
-        let action = action(interval);
+    let interval_state = use_state(cx, || IntervalState::Running);
+
+    use_effect(cx, (interval_state,), move |(interval_state,)| {
+        to_owned![interval_state];
         async move {
-            action.await;
+            if *interval_state.current() == IntervalState::Cleared {
+                return;
+            }
+            let action = Box::new(action);
+            let mut interval = interval(duration);
+            while *interval_state.current() == IntervalState::Running {
+                interval.tick().await;
+                action(&interval).await;
+            }
         }
     });
+
+    UseInterval {
+        interval_state: interval_state.clone(),
+    }
 }

@@ -7,22 +7,8 @@ These are just experiments for myself, I will move these to https://github.com/D
 fn app(cx: Scope) -> Element {
     let channel = use_channel::<String>(cx, 5);
 
-    use_effect(cx, (), {
-        to_owned![channel];
-        move |_| async move {
-            while let Ok(msg) = channel.recv().await {
-                println!("Listener A: {msg}")
-            }
-        }
-    });
-
-    use_effect(cx, (), {
-        to_owned![channel];
-        move |_| async move {
-            while let Ok(msg) = channel.recv().await {
-                println!("Listener B: {msg}")
-            }
-        }
+    use_listen_channel(cx, &channel, move |msg| async move {
+        println!("Listener: {msg}");
     });
 
     let onclick = move |_: MouseEvent| {

@@ -11,7 +11,6 @@ impl UseInterval {
     /// Stop the interval
     pub fn clear(&self) {
         self.interval_state.set(IntervalState::Cleared);
-        println!("clared");
     }
 }
 

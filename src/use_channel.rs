@@ -1,3 +1,6 @@
+use std::future::Future;
+
+use dioxus::prelude::{to_owned, use_effect, use_state, UseState};
 use freya::prelude::ScopeState;
 use tokio::sync::broadcast::{
     self,
@@ -8,6 +11,12 @@ use tokio::sync::broadcast::{
 pub struct UseChannel<MessageType: Clone> {
     sender: Sender<MessageType>,
     receiver: Receiver<MessageType>,
+}
+
+impl<T: Clone> PartialEq for UseChannel<T> {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
 }
 
 impl<MessageType: Clone> Clone for UseChannel<MessageType> {
@@ -41,4 +50,51 @@ pub fn use_channel<MessageType: Clone + 'static>(
     };
 
     state
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+enum ChannelListenerState {
+    Running,
+    Stopped,
+}
+
+pub struct UseListenChannel {
+    listener_state: UseState<ChannelListenerState>,
+}
+
+impl UseListenChannel {
+    /// Stop the listener
+    pub fn stop(&self) {
+        self.listener_state.set(ChannelListenerState::Stopped);
+    }
+}
+
+pub fn use_listen_channel<MessageType: Clone + 'static, Handler>(
+    cx: &ScopeState,
+    channel: &UseChannel<MessageType>,
+    action: impl Fn(MessageType) -> Handler + 'static,
+) -> UseListenChannel
+where
+    Handler: Future<Output = ()> + 'static,
+{
+    let listener_state = use_state(cx, || ChannelListenerState::Running);
+
+    use_effect(cx, (listener_state,), move |(listener_state,)| {
+        to_owned![listener_state, channel];
+        async move {
+            if *listener_state.current() == ChannelListenerState::Stopped {
+                return;
+            }
+            let action = Box::new(action);
+            while let Ok(msg) = channel.recv().await {
+                if *listener_state.current() == ChannelListenerState::Running {
+                    action(msg).await;
+                }
+            }
+        }
+    });
+
+    UseListenChannel {
+        listener_state: listener_state.clone(),
+    }
 }

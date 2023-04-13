@@ -9,43 +9,55 @@ mod use_interval;
 use std::time::Duration;
 
 use freya::prelude::*;
+use use_channel::UseChannel;
 
-use crate::use_channel::use_channel;
+use crate::use_channel::{use_channel, use_listen_channel};
 use crate::use_interval::use_interval;
 
 fn main() {
     launch(app);
 }
 
-fn app(cx: Scope) -> Element {
-    let channel = use_channel::<String>(cx, 5);
-
-    use_effect(cx, (), {
-        to_owned![channel];
-        move |_| async move {
-            while let Ok(msg) = channel.recv().await {
-                println!("Listener A: {msg}")
-            }
-        }
+#[allow(non_snake_case)]
+#[inline_props]
+fn Listener(cx: Scope, channel: UseChannel<String>) -> Element {
+    let listener_b = use_listen_channel(cx, &channel, move |msg| async move {
+        println!("Listener B: {msg}");
     });
 
-    use_effect(cx, (), {
-        to_owned![channel];
-        move |_| async move {
-            while let Ok(msg) = channel.recv().await {
-                println!("Listener B: {msg}")
-            }
-        }
-    });
-
-    let onclick = move |_: MouseEvent| {
-        channel.send("Hello").ok();
+    let stop = move |_: MouseEvent| {
+        listener_b.stop();
     };
 
     render!(
         label {
-            onclick: onclick,
+            onclick: stop,
+            "Stop B"
+        }
+    )
+}
+
+fn app(cx: Scope) -> Element {
+    let channel = use_channel::<String>(cx, 5);
+
+    use_listen_channel(cx, &channel, move |msg| async move {
+        println!("Listener A: {msg}");
+    });
+
+    let send = {
+        to_owned![channel];
+        move |_: MouseEvent| {
+            channel.send("Hello").ok();
+        }
+    };
+
+    render!(
+        label {
+            onclick: send,
             "Send hello"
+        }
+        Listener {
+            channel: channel
         }
     )
 }

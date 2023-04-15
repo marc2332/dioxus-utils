@@ -812,6 +812,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "dioxus-utils"
+version = "0.1.0"
+dependencies = [
+ "dioxus",
+ "freya",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "dispatch"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1215,16 +1225,6 @@ dependencies = [
  "skia-safe",
  "tokio",
  "winit",
-]
-
-[[package]]
-name = "freya-template"
-version = "0.1.0"
-dependencies = [
- "dioxus",
- "freya",
- "tokio",
- "uuid",
 ]
 
 [[package]]

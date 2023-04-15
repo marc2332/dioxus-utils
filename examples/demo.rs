@@ -3,16 +3,13 @@
     windows_subsystem = "windows"
 )]
 
-mod use_channel;
-mod use_interval;
-
 use std::time::Duration;
 
 use freya::prelude::*;
-use use_channel::UseChannel;
-
-use crate::use_channel::{use_channel, use_listen_channel};
-use crate::use_interval::use_interval;
+use freya_template::{
+    use_channel::{use_channel, use_listen_channel, UseChannel},
+    use_interval::use_interval,
+};
 
 fn main() {
     launch(app);

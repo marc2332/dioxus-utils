@@ -1,7 +1,6 @@
 use std::future::Future;
 
-use dioxus::prelude::{to_owned, use_effect, use_state, UseState};
-use freya::prelude::ScopeState;
+use dioxus::prelude::{to_owned, use_effect, use_state, ScopeState, UseState};
 use tokio::sync::broadcast::{
     self,
     error::{RecvError, SendError},

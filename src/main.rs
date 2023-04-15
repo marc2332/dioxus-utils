@@ -21,18 +21,29 @@ fn main() {
 #[allow(non_snake_case)]
 #[inline_props]
 fn Listener(cx: Scope, channel: UseChannel<String>) -> Element {
-    let listener_b = use_listen_channel(cx, &channel, move |msg| async move {
+    let listener_b = use_listen_channel(cx, channel, move |msg| async move {
         println!("Listener B: {msg}");
     });
 
-    let stop = move |_: MouseEvent| {
-        listener_b.stop();
+    let stop = {
+        to_owned![listener_b];
+        move |_: MouseEvent| {
+            listener_b.stop();
+        }
+    };
+
+    let resume = move |_: MouseEvent| {
+        listener_b.resume();
     };
 
     render!(
         label {
             onclick: stop,
             "Stop B"
+        }
+        label {
+            onclick: resume,
+            "Resume B"
         }
     )
 }
@@ -72,14 +83,25 @@ fn IntervalApp(cx: Scope) -> Element {
         },
     );
 
-    let onclick = move |_: MouseEvent| {
-        interval.clear();
+    let clear = {
+        to_owned![interval];
+        move |_: MouseEvent| {
+            interval.clear();
+        }
+    };
+
+    let resume = move |_: MouseEvent| {
+        interval.resume();
     };
 
     render!(
         label {
-            onclick: onclick,
+            onclick: clear,
             "Clear"
+        }
+        label {
+            onclick: resume,
+            "Resume"
         }
     )
 }

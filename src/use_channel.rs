@@ -7,21 +7,25 @@ use tokio::sync::broadcast::{
     error::{RecvError, SendError},
     Receiver, Sender,
 };
+use uuid::Uuid;
 
+#[derive(Debug)]
 pub struct UseChannel<MessageType: Clone> {
+    id: Uuid,
     sender: Sender<MessageType>,
     receiver: Receiver<MessageType>,
 }
 
 impl<T: Clone> PartialEq for UseChannel<T> {
-    fn eq(&self, _: &Self) -> bool {
-        true
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
     }
 }
 
 impl<MessageType: Clone> Clone for UseChannel<MessageType> {
     fn clone(&self) -> Self {
         Self {
+            id: self.id,
             sender: self.sender.clone(),
             receiver: self.sender.subscribe(),
         }
@@ -38,18 +42,19 @@ impl<MessageType: Clone> UseChannel<MessageType> {
     }
 }
 
+/// Create a bounded, multi-producer, multi-consumer channel where each sent value is broadcasted to all active receivers
 pub fn use_channel<MessageType: Clone + 'static>(
     cx: &ScopeState,
     size: usize,
 ) -> UseChannel<MessageType> {
+    let id = cx.use_hook(Uuid::new_v4);
     let sender = cx.use_hook(|| broadcast::channel::<MessageType>(size).0);
 
-    let state = UseChannel {
+    UseChannel {
+        id: *id,
         sender: sender.clone(),
         receiver: sender.subscribe(),
-    };
-
-    state
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -58,6 +63,7 @@ enum ChannelListenerState {
     Stopped,
 }
 
+#[derive(Clone, PartialEq, Debug)]
 pub struct UseListenChannel {
     listener_state: UseState<ChannelListenerState>,
 }
@@ -67,8 +73,14 @@ impl UseListenChannel {
     pub fn stop(&self) {
         self.listener_state.set(ChannelListenerState::Stopped);
     }
+
+    /// Resume the listener
+    pub fn resume(&self) {
+        self.listener_state.set(ChannelListenerState::Running);
+    }
 }
 
+/// Create a listener to a channel.
 pub fn use_listen_channel<MessageType: Clone + 'static, Handler>(
     cx: &ScopeState,
     channel: &UseChannel<MessageType>,
@@ -89,6 +101,8 @@ where
             while let Ok(msg) = channel.recv().await {
                 if *listener_state.current() == ChannelListenerState::Running {
                     action(msg).await;
+                } else {
+                    break;
                 }
             }
         }

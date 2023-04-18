@@ -5,11 +5,11 @@
 
 use std::time::Duration;
 
-use freya::prelude::*;
-use freya_template::{
+use dioxus_utils::{
     use_channel::{use_channel, use_listen_channel, UseChannel},
     use_interval::use_interval,
 };
+use freya::prelude::*;
 
 fn main() {
     launch(app);

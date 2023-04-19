@@ -70,12 +70,16 @@ pub struct UseListenChannel {
 impl UseListenChannel {
     /// Stop the listener
     pub fn stop(&self) {
-        self.listener_state.set(ChannelListenerState::Stopped);
+        if *self.listener_state.get() == ChannelListenerState::Running {
+            self.listener_state.set(ChannelListenerState::Stopped);
+        }
     }
 
     /// Resume the listener
     pub fn resume(&self) {
-        self.listener_state.set(ChannelListenerState::Running);
+        if *self.listener_state.get() == ChannelListenerState::Stopped {
+            self.listener_state.set(ChannelListenerState::Running);
+        }
     }
 }
 
@@ -97,10 +101,19 @@ where
                 return;
             }
             let action = Box::new(action);
-            while let Ok(msg) = channel.recv().await {
-                if *listener_state.current() == ChannelListenerState::Running {
-                    action(msg).await;
-                } else {
+            loop {
+                match channel.recv().await {
+                    Ok(msg) => {
+                        if *listener_state.current() == ChannelListenerState::Running {
+                            action(msg).await;
+                        }
+                    }
+                    Err(RecvError::Closed) => {
+                        break;
+                    }
+                    Err(RecvError::Lagged(_)) => {}
+                }
+                if *listener_state.current() == ChannelListenerState::Stopped {
                     break;
                 }
             }
